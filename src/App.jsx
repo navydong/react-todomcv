@@ -1,30 +1,30 @@
 import React, { Component } from 'react';
-// import { Router } from 'react-router'
 import './App.css';
 import '../node_modules/todomvc-app-css/index.css'
 import '../node_modules/todomvc-common/base.css'
 
+
+var STORAGE_KEY = 'todos-react'
+var todoStorage = {
+    fetch: function () {
+        var todos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+        todoStorage.uid = todos.length
+        return todos
+    },
+    save: function (todos) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
+    }
+}
 class App extends Component {
     constructor(props) {
         super(props)
         this.state = {
             visibilityFilter: 'all',
-            todos: [
-                {
-                    id: 0,
-                    label: 'Taste JavaScript',
-                    completed: true
-                },
-                {
-                    id: 1,
-                    label: 'Buy a unicorn',
-                    completed: false
-                }
-            ]
+            todos: todoStorage.fetch()
         }
     }
-    componentDidMount() {
-
+    componentDidUpdate() {
+        todoStorage.save(this.state.todos)
     }
     todoCheckChange = (id) => {
         const todos = [...this.state.todos]
@@ -39,17 +39,22 @@ class App extends Component {
     }
     keyPress = (e) => {
         if (e.charCode === 13) {
+            const value = e.target.value.replace(/(^\s*)|(\s*$)/g, "");
+            if (value == '') {
+                return
+            }
             const todos = [
                 ...this.state.todos,
                 {
                     id: this.state.todos.length,
-                    label: e.target.value,
+                    label: value,
                     completed: false
                 }
             ]
             this.setState({
                 todos
             })
+            e.target.value = ''
         }
     }
     delete = (id) => {
@@ -95,8 +100,26 @@ class App extends Component {
             todos
         })
     }
+    doubleClick = (id) => {
+        this.setState({
+            editing: id
+        })
+    }
+    doneEdit = (e) => {
+        const value = e.target.value
+        const todos = [...this.state.todos]
+        todos.forEach(todo => {
+            if (todo == this.state.editedTodo) {
+                todo.label = value
+            }
+        })
+        this.setState({
+            todos,
+            editedTodo: null
+        })
+    }
     render() {
-        const { todos, visibilityFilter } = this.state
+        const { todos, visibilityFilter, editing } = this.state
         const showTodos = todos.filter(todo => {
             switch (visibilityFilter) {
                 case 'active':
@@ -123,13 +146,13 @@ class App extends Component {
                             {/*  List items should get the className `editing` when editing and `completed` when marked as completed  */}
                             {
                                 showTodos.map((todo) => (
-                                    <li className={todo.completed ? 'completed' : ''} key={todo.id}>
+                                    <li className={`${todo.completed ? 'completed' : ''} ${editing == todo.id ? 'editing' : ''}`} key={todo.id}>
                                         <div className="view">
                                             <input className="toggle" type="checkbox" checked={todo.completed} onChange={() => this.todoCheckChange(todo.id)} />
-                                            <label>{todo.label}</label>
+                                            <label onDoubleClick={() => this.doubleClick(todo.id)}>{todo.label}</label>
                                             <button className="destroy" onClick={() => this.delete(todo.id)}></button>
                                         </div>
-                                        <input className="edit" defaultValue="Create a TodoMVC template" />
+                                        <input className="edit" defaultValue={todo.label} onBlur={this.doneEdit} />
                                     </li>
                                 ))
                             }
@@ -142,13 +165,13 @@ class App extends Component {
                         {/* <!-- Remove this if you don't implement routing --> */}
                         <ul className="filters" onClick={this.filter} >
                             <li>
-                                <a className={visibilityFilter === 'all' && 'selected'} href="#/">All</a>
+                                <a className={visibilityFilter === 'all' ? 'selected' : ''} href="#/">All</a>
                             </li>
                             <li>
-                                <a className={visibilityFilter === 'active' && 'selected'} href="#/active">Active</a>
+                                <a className={visibilityFilter === 'active' ? 'selected' : ''} href="#/active">Active</a>
                             </li>
                             <li>
-                                <a className={visibilityFilter === 'completed' && 'selected'} href="#/completed">Completed</a>
+                                <a className={visibilityFilter === 'completed' ? 'selected' : ''} href="#/completed">Completed</a>
                             </li>
                         </ul>
                         {/* <!-- Hidden if no completed items are left ↓ --> */}
@@ -157,7 +180,6 @@ class App extends Component {
                                 ? <button className="clear-completed" onClick={this.clearCompleted} >Clear completed</button>
                                 : null
                         }
-
                     </footer>
                 </section>
                 <footer className="info">
